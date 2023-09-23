@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.Metrics;
 using System.Reflection;
+using System.Reflection.Emit;
 using Bogus;
 using Bogus.DataSets;
 using Npgsql;
@@ -82,28 +83,49 @@ class Program
                 conn.Open();
                 string insertSql = $"INSERT INTO Worker (worker_id,IDWorker, FirstName, LastName, Age, phones) VALUES (@worker_id, @IDWorker, @FirstName, @LastName, @Age, @phones)";
 
-            foreach (var person in generator.persons)
-            {
-                // Создайте объект NpgsqlCommand
-                using (NpgsqlCommand cmd = new NpgsqlCommand(insertSql, conn))
+                foreach (var person in generator.persons)
                 {
-                    // Установите параметры для SQL-запроса
-                    cmd.Parameters.AddWithValue("@worker_id", person.Id);
-                    cmd.Parameters.AddWithValue("@IDWorker", Guid.NewGuid());
-                    cmd.Parameters.AddWithValue("@FirstName", person.FirstName);
-                    cmd.Parameters.AddWithValue("@LastName", person.LastName);
-                    cmd.Parameters.AddWithValue("@Age", person.Age);
-                    cmd.Parameters.AddWithValue("@phones", person.Phones);
+                    try
+                    {
+                        if (person.Age > 14)
+                        {
+                            // Создайте объект NpgsqlCommand
+                            using (NpgsqlCommand cmd = new NpgsqlCommand(insertSql, conn))
+                            {
+                                // Установите параметры для SQL-запроса
+                                cmd.Parameters.AddWithValue("@worker_id", person.Id);
+                                cmd.Parameters.AddWithValue("@IDWorker", Guid.NewGuid());
+                                cmd.Parameters.AddWithValue("@FirstName", person.FirstName);
+                                cmd.Parameters.AddWithValue("@LastName", person.LastName);
+                                cmd.Parameters.AddWithValue("@Age", person.Age);
+                                cmd.Parameters.AddWithValue("@phones", person.Phones);
 
-                    // Выполните SQL-запрос
-                    cmd.ExecuteNonQuery();
+                                // Выполните SQL-запрос
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Invalid Age: {person.Age} for {person.FirstName} {person.LastName}. Skipping insertion.");
+                        }
+                    }
+                    catch(WrongAge ex)
+                    {
+                        Console.WriteLine("Ты слишком мал для этой работы");
+                    }
+
                 }
             }
-        }
-
-        ConsoleWriter<Person> debuger = new ConsoleWriter<Person>(generator.persons);
+        
+            ConsoleWriter<Person> debuger = new ConsoleWriter<Person>(generator.persons);
         Console.WriteLine("Reflection is end. Push ENTER to continue...");
 
         Console.ReadKey();
     }
+}
+public class WrongAge : ApplicationException
+{
+    public WrongAge() { }
+    public WrongAge(string message) : base(message) { }
+    public WrongAge(string message, Exception ex) : base(message) { }
 }
